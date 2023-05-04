@@ -27,8 +27,9 @@ HUBS-own [FID
 
 globals [ route-dataset
           stops-dataset
-          specified-route
-          specified-route-stops]
+          specified-route       ; VectorFeature | Route
+          specified-route-stops ; List of Vector Features | Stops
+        ]
 
 
 to Load-Databases
@@ -57,18 +58,22 @@ to Specific-Route-Creation
   let specified-route-Abbr gis:property-value specified-route "LineAbbr"
   let specified-route-Name gis:property-value specified-route "LINENAME"
 
-  set specified-route-stops [] ; Initialize list
+  ;; Initialize Stops Routes list
+  set specified-route-stops [] ; Initialize list of stops for User defined Route
 
+  ;;Filter Through all stops ----------------------------------------------
   foreach stops-dataset-list [ x ->
     let stopRouteName gis:property-value x "Route" ; VectorFreature property value
 
     ifelse (member? ", " stopRouteName)[
-      ;show "Multi"
 
+      ;;Temp variable holders ----------
       let route-list []
       let subPosition 0
       let routeName 0
 
+      ;;Remove commas and make each route a string
+      ;;Place strings in list
       while [member? "," stopRouteName] [
 
         set subPosition (position "," stopRouteName)
@@ -77,43 +82,25 @@ to Specific-Route-Creation
 
         set route-list lput routeName route-list
 
-        set stopRouteName remove routeName stopRouteName
+        set stopRouteName remove routeName stopRouteName ; Remove Route from list
 
-        set stopRouteName remove-item 0 stopRouteName
-        set stopRouteName remove-item 0 stopRouteName
+        set stopRouteName remove-item 0 stopRouteName ; Removes comma
+        set stopRouteName remove-item 0 stopRouteName ; Removes space after comma
       ]
 
       set route-list lput stopRouteName route-list
 
-      ;show route-list
-
       if (member? specified-route-Abbr route-list) or (member? specified-route-Name route-list) [
         set specified-route-stops lput x specified-route-stops    ; Append VectorFeature if Stop on route
-        ;show specified-route-Abbr
-        ;show specified-route-Name
-
       ]
 
-      ;stop
-
-      ;set stopRouteName remove "," stopRouteName
-;      set stopRouteName insert-item 0 stopRouteName "[["
-;      set stopRouteName insert-item (length stopRouteName) stopRouteName "]]"
-;      show stopRouteName
-;      show read-from-string stopRouteName
-
     ]
+    ; Else Statment ----------
     [
-      if (stopRouteName = specified-route-Abbr) or (stopRouteName = specified-route-Name) [
+      if (stopRouteName = specified-route-Abbr) or (stopRouteName = specified-route-Name) [  ; Check if Name or Abbr is on route
          set specified-route-stops lput x specified-route-stops    ; Append VectorFeature if Stop on route
       ]
     ]
-
-
-
-;    if (member? specified-route-Abbr stopRouteName) or (member? specified-route-Name stopRouteName) [
-;      set specified-route-stops lput x specified-route-stops    ; Append VectorFeature if Stop on route
-;    ]
   ]
 
 end
