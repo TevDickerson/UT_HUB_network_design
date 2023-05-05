@@ -25,10 +25,13 @@ HUBS-own [FID
 
 
 
-globals [ route-dataset
-          stops-dataset
-          specified-route       ; VectorFeature | Route
-          specified-route-stops ; List of Vector Features | Stops
+globals [ route-dataset                  ; VectorDataset
+          stops-dataset                  ; VectorDataset
+          specified-route                ; VectorFeature | Route
+          specified-route-stops          ; List of VectorFeatures | Stops
+          specified-route-stops-FIDs     ; List of FID numbers
+          specified-route-HUB-agentset
+          world-envelope
         ]
 
 
@@ -40,6 +43,7 @@ to Load-Databases
   ;;Load Data Base --------------------------------------------------------
   set route-dataset gis:load-dataset (word namespace_Routes ".geojson") ; VectorDataset
   set stops-dataset gis:load-dataset (word namespace_Stops ".geojson")  ; VectorDataset
+  gis:load-coordinate-system (word namespace_Routes ".prj")
 
 
 end
@@ -60,6 +64,8 @@ to Specific-Route-Creation
 
   ;; Initialize Stops Routes list
   set specified-route-stops [] ; Initialize list of stops for User defined Route
+  set specified-route-stops-FIDs [] ; Initialize list of stop FIDs. Use these to filter agents
+  let routeFID 0
 
   ;;Filter Through all stops ----------------------------------------------
   foreach stops-dataset-list [ x ->
@@ -71,6 +77,7 @@ to Specific-Route-Creation
       let route-list []
       let subPosition 0
       let routeName 0
+
 
       ;;Remove commas and make each route a string
       ;;Place strings in list
@@ -92,28 +99,39 @@ to Specific-Route-Creation
 
       if (member? specified-route-Abbr route-list) or (member? specified-route-Name route-list) [
         set specified-route-stops lput x specified-route-stops    ; Append VectorFeature if Stop on route
+        set routeFID gis:property-value x "FID" ; Get VectorFreature property value FID
+        set specified-route-stops-FIDs lput routeFID specified-route-stops-FIDs ; Append FID to list
       ]
 
     ]
     ; Else Statment ----------
     [
       if (stopRouteName = specified-route-Abbr) or (stopRouteName = specified-route-Name) [  ; Check if Name or Abbr is on route
-         set specified-route-stops lput x specified-route-stops    ; Append VectorFeature if Stop on route
+        set specified-route-stops lput x specified-route-stops    ; Append VectorFeature if Stop on route
+        set routeFID gis:property-value x "FID" ; Get VectorFreature property value FID
+        set specified-route-stops-FIDs lput routeFID specified-route-stops-FIDs ; Append FID to list
       ]
     ]
   ]
+
+  ifelse Zoom_to_Route [
+    set world-envelope gis:envelope-of specified-route  ; zoom to route
+  ]
+  [
+    set world-envelope gis:envelope-of route-dataset    ; would map
+  ]
+
+
+
 
 end
 
 
 to Build-Map
   ;;Build Map -------------------------------------------------------------
-  ifelse Zoom_to_Route [
-    gis:set-world-envelope gis:envelope-of specified-route  ; zoom to route
-  ]
-  [
-    gis:set-world-envelope gis:envelope-of route-dataset    ; would map
-  ]
+
+
+  gis:set-world-envelope world-envelope
 
   gis:set-drawing-color blue   ; Plot all routes
   gis:draw route-dataset 1
@@ -132,6 +150,67 @@ to Build-Map
 end
 
 
+to Create-Agents
+  Create-HUB-Agents
+end
+
+to Create-HUB-Agents
+
+  set-default-shape HUBs "house ranch"
+
+  show specified-route-stops
+  foreach specified-route-stops [x ->
+    if not empty? gis:project-lat-lon (gis:property-value x "LATITUDE") (gis:property-value x "LONGITUDE") [
+      create-HUBs 1 [
+        set FID gis:property-value x "FID"
+        set STOPNAME gis:property-value x "STOPNAME"
+        set ZIPCODE gis:property-value x "ZIPCODE"
+        set MODE gis:property-value x "MODE"
+        set LATITUDE gis:property-value x "LATITUDE"
+        set AVGALIGHT gis:property-value x "AVGALIGHT"
+        set CITY gis:property-value x "CITY"
+        set COUNTY gis:property-value x "COUNTY"
+        set LONGITUDE gis:property-value x "LONGITUDE"
+        set STOPABBR_J gis:property-value x "STOPABBR_J"
+        set STOPABBR gis:property-value x "STOPABBR"
+        set UTA_STOPID gis:property-value x "UTA_STOPID"
+        set AVGBOARD gis:property-value x "AVGBOARD"
+        set ROUTE gis:property-value x "ROUTE"
+        set xcor item 0 gis:project-lat-lon LATITUDE LONGITUDE
+        set ycor item 1 gis:project-lat-lon LATITUDE LONGITUDE
+        set color white
+      ]
+    ]
+  ]
+
+  set specified-route-HUB-agentset HUBs
+
+
+;  ["FID" "FID"]
+;  ["STOPNAME" "STOPNAME"]
+;  ["ZIPCODE" "ZIPCODE"]
+;  ["MODE" "MODE"]
+;  ["LATITUDE" "LATITUDE"]
+;  ["AVGALIGHT" "AVGALIGHT"]
+;  ["CITY" "CITY"]
+;  ["COUNTY" "COUNTY"]
+;  ["LONGITUDE" "LONGITUDE"]
+;  ["STOPABBR_J" "STOPABBR_J"]
+;  ["STOPABBR" "STOPABBR"]
+;  ["UTA_STOPID" "UTA_STOPID"]
+;  ["AVGBOARD" "AVGBOARD"]
+;  ["ROUTE" "ROUTE"]
+
+
+
+
+
+
+
+end
+
+
+
 to setup
 
   ;;Clear Cache's ---------------------------------------------------------
@@ -147,17 +226,51 @@ to setup
   ;;Build Map -------------------------------------------------------------
   Build-Map
 
-
-
-  set-default-shape HUBs "house ranch"
-
-
+  ;;Create Agents ---------------------------------------------------------
+  Create-Agents
 
 
 
 
 end
 
+to select-HUB
+  let selected-HUB 0
+  let end-flag false
+  let lat 0
+  let lon 0
+  let delta 0.005
+
+  if mouse-inside? and mouse-down? [
+
+    carefully [
+      ask one-of specified-route-HUB-agentset with [distancexy mouse-xcor mouse-ycor < 0.5][
+        set selected-HUB self
+      ]
+      set end-flag true
+    ]
+    [
+      show "No HUB found"
+    ]
+  ]
+
+  if end-flag [
+    ask selected-HUB[
+      set lon LONGITUDE
+      set lat LATITUDE
+      set world-envelope (list (LONGITUDE - delta) (LONGITUDE + delta) (LATITUDE - delta) (LATITUDE + delta))
+    ]
+    clear-patches
+    clear-turtles
+    clear-drawing
+    Build-Map
+    Create-Agents
+    stop
+  ]
+
+
+
+end
 
 
 
@@ -226,6 +339,23 @@ Zoom_to_Route
 0
 1
 -1000
+
+BUTTON
+83
+12
+179
+45
+Select HUB
+select-HUB
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
