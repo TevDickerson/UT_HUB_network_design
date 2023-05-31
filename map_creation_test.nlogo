@@ -3,8 +3,20 @@
 
 extensions [ gis ] ; adds GIS support
 
-
+breed [LINEs LINE]
 breed [HUBs HUB]
+
+LINES-own [FID
+  ROUTETYPE
+  SHAPE_LENGTH
+  FREQUENCY
+  LINEABBR1
+  CITY
+  AVGBRD
+  COUNTY
+  LINEABBR
+  LINENAME
+  WAYPOINTS]
 
 HUBS-own [FID
   STOPNAME
@@ -26,7 +38,9 @@ HUBS-own [FID
 
 
 globals [ route-dataset                  ; VectorDataset
+          route-dataset-list             ; VectorFeature
           stops-dataset                  ; VectorDataset
+          stops-dataset-list             ; VectorFeature
           specified-route                ; VectorFeature | Route
           specified-route-stops          ; List of VectorFeatures | Stops
           specified-route-stops-FIDs     ; List of FID numbers
@@ -51,7 +65,7 @@ end
 
 to Specific-Route-Creation
   ;;Create List of VectorFeatures of all stops ----------------------------
-  let stops-dataset-list gis:find-greater-than stops-dataset "FID" 0
+  set stops-dataset-list gis:find-greater-than stops-dataset "FID" 0
 
 
   ;;Get Selected Route ----------------------------------------------------
@@ -136,8 +150,10 @@ to Build-Map
   gis:set-drawing-color blue   ; Plot all routes
   gis:draw route-dataset 1
 
-  gis:set-drawing-color green  ; Plot all stops
-  gis:draw stops-dataset 1
+  if show-all-stops? [
+    gis:set-drawing-color green  ; Plot all stops
+    gis:draw stops-dataset 1
+  ]
 
   gis:set-drawing-color red    ; Plot specific route
   gis:draw specified-route 1
@@ -151,39 +167,93 @@ end
 
 
 to Create-Agents
+  Creat-LINE-Agents
   Create-HUB-Agents
 end
+
+
+to Creat-LINE-Agents
+  set route-dataset-list gis:find-greater-than route-dataset "FID" 0
+  foreach route-dataset-list [x ->
+    create-LINEs 1 [
+      set FID gis:property-value x "FID"
+      set ROUTETYPE gis:property-value x "ROUTETYPE"
+      set SHAPE_LENGTH gis:property-value x "SHAPE_LENGTH"
+      set FREQUENCY gis:property-value x "FREQUENCY"
+      set LINEABBR1 gis:property-value x "LINEABBR1"
+      set CITY gis:property-value x "CITY"
+      set AVGBRD gis:property-value x "AVGBRD"
+      set COUNTY gis:property-value x "COUNTY"
+      set LINEABBR gis:property-value x "LINEABBR"
+      set LINENAME gis:property-value x "LINENAME"
+      set WAYPOINTS []
+      set hidden? True
+    ]
+  ]
+
+ ;["FID" "ROUTETYPE" "SHAPE_LENGTH" "FREQUENCY" "LINEABBR1" "CITY" "AVGBRD" "COUNTY" "LINEABBR" "LINENAME"]
+
+
+
+
+end
+
 
 to Create-HUB-Agents
 
   set-default-shape HUBs "house ranch"
 
-  show specified-route-stops
-  foreach specified-route-stops [x ->
-    if not empty? gis:project-lat-lon (gis:property-value x "LATITUDE") (gis:property-value x "LONGITUDE") [
-      create-HUBs 1 [
-        set FID gis:property-value x "FID"
-        set STOPNAME gis:property-value x "STOPNAME"
-        set ZIPCODE gis:property-value x "ZIPCODE"
-        set MODE gis:property-value x "MODE"
-        set LATITUDE gis:property-value x "LATITUDE"
-        set AVGALIGHT gis:property-value x "AVGALIGHT"
-        set CITY gis:property-value x "CITY"
-        set COUNTY gis:property-value x "COUNTY"
-        set LONGITUDE gis:property-value x "LONGITUDE"
-        set STOPABBR_J gis:property-value x "STOPABBR_J"
-        set STOPABBR gis:property-value x "STOPABBR"
-        set UTA_STOPID gis:property-value x "UTA_STOPID"
-        set AVGBOARD gis:property-value x "AVGBOARD"
-        set ROUTE gis:property-value x "ROUTE"
-        set xcor item 0 gis:project-lat-lon LATITUDE LONGITUDE
-        set ycor item 1 gis:project-lat-lon LATITUDE LONGITUDE
-        set color white
+
+  foreach stops-dataset-list [x ->
+    ifelse member? x specified-route-stops [
+      if not empty? gis:project-lat-lon (gis:property-value x "LATITUDE") (gis:property-value x "LONGITUDE") [
+        create-HUBs 1 [
+          set FID gis:property-value x "FID"
+          set STOPNAME gis:property-value x "STOPNAME"
+          set ZIPCODE gis:property-value x "ZIPCODE"
+          set MODE gis:property-value x "MODE"
+          set LATITUDE gis:property-value x "LATITUDE"
+          set AVGALIGHT gis:property-value x "AVGALIGHT"
+          set CITY gis:property-value x "CITY"
+          set COUNTY gis:property-value x "COUNTY"
+          set LONGITUDE gis:property-value x "LONGITUDE"
+          set STOPABBR_J gis:property-value x "STOPABBR_J"
+          set STOPABBR gis:property-value x "STOPABBR"
+          set UTA_STOPID gis:property-value x "UTA_STOPID"
+          set AVGBOARD gis:property-value x "AVGBOARD"
+          set ROUTE gis:property-value x "ROUTE"
+          set xcor item 0 gis:project-lat-lon LATITUDE LONGITUDE
+          set ycor item 1 gis:project-lat-lon LATITUDE LONGITUDE
+          set color white
+        ]
+      ]
+    ]
+    [
+      if not empty? gis:project-lat-lon (gis:property-value x "LATITUDE") (gis:property-value x "LONGITUDE") [
+        create-HUBs 1 [
+          set FID gis:property-value x "FID"
+          set STOPNAME gis:property-value x "STOPNAME"
+          set ZIPCODE gis:property-value x "ZIPCODE"
+          set MODE gis:property-value x "MODE"
+          set LATITUDE gis:property-value x "LATITUDE"
+          set AVGALIGHT gis:property-value x "AVGALIGHT"
+          set CITY gis:property-value x "CITY"
+          set COUNTY gis:property-value x "COUNTY"
+          set LONGITUDE gis:property-value x "LONGITUDE"
+          set STOPABBR_J gis:property-value x "STOPABBR_J"
+          set STOPABBR gis:property-value x "STOPABBR"
+          set UTA_STOPID gis:property-value x "UTA_STOPID"
+          set AVGBOARD gis:property-value x "AVGBOARD"
+          set ROUTE gis:property-value x "ROUTE"
+          set xcor item 0 gis:project-lat-lon LATITUDE LONGITUDE
+          set ycor item 1 gis:project-lat-lon LATITUDE LONGITUDE
+          set color blue
+        ]
       ]
     ]
   ]
 
-  set specified-route-HUB-agentset HUBs
+  set specified-route-HUB-agentset HUBs with [ color = white]
 
 
 ;  ["FID" "FID"]
@@ -230,7 +300,15 @@ to setup
   Create-Agents
 
 
+  show gis:vertex-lists-of specified-route
 
+  let specified-route-vertex-lists gis:vertex-lists-of specified-route
+
+  show first specified-route-vertex-lists
+
+  foreach (first specified-route-vertex-lists) [x ->
+    show gis:location-of x
+  ]
 
 end
 
@@ -239,7 +317,7 @@ to select-HUB
   let end-flag false
   let lat 0
   let lon 0
-  let delta 0.005
+  let delta Zoom_scale
 
   if mouse-inside? and mouse-down? [
 
@@ -271,7 +349,6 @@ to select-HUB
 
 
 end
-
 
 
 @#$#@#$#@
@@ -320,10 +397,10 @@ NIL
 1
 
 CHOOSER
-4
-108
-113
-153
+6
+55
+115
+100
 Route_Names
 Route_Names
 "South Temple" "200 SOUTH" "400 SOUTH" "900 SOUTH" "1700 SOUTH" "2100 SOUTH / 2100 EAST" "3300 SOUTH" "3500 SOUTH" "3900 SOUTH" "4500 SOUTH" "4700 SOUTH" "5400 SOUTH" "6200 SOUTH" "7200 SOUTH" "STATE STREET NORTH" "STATE STREET SOUTH" "500 EAST" "900 EAST / 9TH Ave" "1300 EAST / 1100 EAST" "REDWOOD ROAD" "SOUTH JORDAN" "HIGHLAND DRIVE / 1300 EAST" "2300 EAST/ HOLLADAY BLVD" "2700 WEST" "4000 WEST/ DIXIE VALLEY" "4800 WEST" "TOOELE FAST BUS" "U OF U/DAVIS COUNTY/WSU" "OGDEN - SALT LAKE INTERCITY" "OGDEN / SALT LAKE EXPRESS" "SLC - OGDEN HWY 89 EXPRESS" "900 W SHUTTLE" "INDUSTRIAL BUSINESS PARK SHUTTLE" "INTERNATIONAL CENTER" "OGDEN TROLLEY" "WILDCAT SHUTTLE" "WEBER STATE UNIVERSITY / MCKAY DEE" "WEST OGDEN" "ENABLE INDUTRIES" "WASHINGTON BLVD" "WEBER INDUSTRIAL PARK" "ATC / HARRISON BLVD / WSU" "WEST ROY /  CLFD STAT" "CLFD STATION  /  DATC" "MIDTOWN TROLLEY" "BRIGHAM CITY/ OGDEN COMMUTER" "LAYTON HILLS MALL / WSU OGDEN CAMP" "MONROE BLVD" " LAGOON /  STATION PARK SHUTTLE" "OGDEN  /  POWDER MOUNTAIN" "SNOWBASIN / OGDEN  SKI" "LAYTON  /  SNOWBASIN" "Blue Line" "Red Line" "Green Line" "S-Line" "FrontRunner" "SANTAQUIN/PAYSON/SF/PROVO STN/UVU" "EAGLE MTN/SARATOGA SPR/LEHI STN/UVU" "NORTH COUNTY/LEHI STATION/UVU" "SOUTH COUNTY/PROVO STATION" "SOUTH UTAH COUNTY BYU/UVU LIMITED" "UTAH VALLEY EXPRESS" "PROVO GRANDVIEW" "AIRPORT/PROVO STATION" "VINEYARD/RIVERWOODS/ PROVO STATION" "STATE STREET" "OREM EAST/WEST" "TECH CORRIDOR RAIL CONNECTOR" "PC-SLC CONNECT" "BINGHM JNCT/SOL BRIGHTN" "90TH SO TRAX/SNWBRD/ALTA" "11TH AVENUE FLEX" "BINGHAM JCTN FLEX" "3200 WEST FLEX" "TOOELE SLC FLEX" "JORDAN GATEWAY FLEX" "MIDVALE FLEX" "5600 WEST FLEX" "7000 SOUTH FLEX" "7800 SOUTH FLEX" "9000 SOUTH FLEX" "OGDEN BDO FLEX" "WEST HAVEN FLEX" "THE BRIGHAM CITY Flex" "SANDY FLEX"
@@ -331,9 +408,9 @@ Route_Names
 
 SWITCH
 7
-64
+139
 162
-97
+172
 Zoom_to_Route
 Zoom_to_Route
 0
@@ -341,10 +418,10 @@ Zoom_to_Route
 -1000
 
 BUTTON
-83
-12
-179
-45
+4
+222
+100
+255
 Select HUB
 select-HUB
 T
@@ -357,14 +434,40 @@ NIL
 NIL
 1
 
+SWITCH
+6
+105
+163
+138
+show-all-stops?
+show-all-stops?
+0
+1
+-1000
+
+SLIDER
+3
+260
+175
+293
+Zoom_scale
+Zoom_scale
+0.001
+0.01
+0.002
+0.001
+1
+NIL
+HORIZONTAL
+
 @#$#@#$#@
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+Model of Weber, Davis, Salt Lake, and Utah County UTA transit system
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+(How it works explaination)
 
 ## HOW TO USE IT
 
@@ -427,6 +530,25 @@ Circle -7500403 true true 110 127 80
 Circle -7500403 true true 110 75 80
 Line -7500403 true 150 100 80 30
 Line -7500403 true 150 100 220 30
+
+bus
+false
+0
+Polygon -7500403 true true 15 206 15 150 15 120 30 105 270 105 285 120 285 135 285 206 270 210 30 210
+Rectangle -16777216 true false 36 126 231 159
+Line -7500403 false 60 135 60 165
+Line -7500403 false 60 120 60 165
+Line -7500403 false 90 120 90 165
+Line -7500403 false 120 120 120 165
+Line -7500403 false 150 120 150 165
+Line -7500403 false 180 120 180 165
+Line -7500403 false 210 120 210 165
+Line -7500403 false 240 135 240 165
+Rectangle -16777216 true false 15 174 285 182
+Circle -16777216 true false 48 187 42
+Rectangle -16777216 true false 240 127 276 205
+Circle -16777216 true false 195 187 42
+Line -7500403 false 257 120 257 207
 
 butterfly
 true
